@@ -1,0 +1,74 @@
+FROM nvidia/cuda:8.0-cudnn5-devel-ubuntu14.04
+RUN apt-get update && \
+        apt-get install -y \
+        build-essential \
+        cmake \
+        git \
+        wget \
+        unzip \
+        yasm \
+        pkg-config \
+        libswscale-dev \
+        libtbb2 \
+        libtbb-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libtiff-dev \
+        libjasper-dev \
+        libavformat-dev \
+        libpq-dev \
+        libopenblas-dev \
+        python-dev python-pip \
+        liblapack-dev \
+        liblapacke-dev
+
+RUN pip install --upgrade pip
+RUN pip install numpy scipy  pandas sklearn easydict
+
+WORKDIR /
+
+RUN wget https://github.com/Itseez/opencv/archive/3.2.0.zip \
+&& unzip 3.2.0.zip \
+&& mkdir /opencv-3.2.0/cmake_binary \
+&& cd /opencv-3.2.0/cmake_binary \
+&& cmake -DBUILD_TIFF=ON \
+  -DBUILD_opencv_java=OFF \
+  -DWITH_CUDA=OFF \
+  -DENABLE_AVX=ON \
+  -DWITH_OPENGL=ON \
+  -DWITH_OPENCL=ON \
+  -DWITH_IPP=ON \
+  -DWITH_TBB=ON \
+  -DWITH_EIGEN=ON \
+  -DWITH_V4L=ON \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_PERF_TESTS=OFF \
+  -DWITH_LAPACK=OFF \
+  -DCMAKE_BUILD_TYPE=RELEASE \
+  -DCMAKE_INSTALL_PREFIX=$(python -c "import sys; print(sys.prefix)") \
+  -DPYTHON_EXECUTABLE=$(which python) \
+  -DPYTHON_INCLUDE_DIR=$(python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
+  -DPYTHON_PACKAGES_PATH=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
+&& make -j4 install \
+&& rm /3.2.0.zip \
+&& rm -r /opencv-3.2.0
+
+RUN pip install flake8 pep8 --upgrade
+RUN cd /root && git clone --recursive https://github.com/dmlc/mxnet && cd mxnet && \
+# Copy config.mk
+  cp make/config.mk config.mk && \
+# Set OpenBLAS
+  sed -i 's/USE_BLAS = atlas/USE_BLAS = openblas/g' config.mk && \
+# Set CUDA flag
+  sed -i 's/USE_CUDA = 0/USE_CUDA = 1/g' config.mk && \
+  sed -i 's/USE_CUDA_PATH = NONE/USE_CUDA_PATH = \/usr\/local\/cuda/g' config.mk && \
+# Set cuDNN flag
+  sed -i 's/USE_CUDNN = 0/USE_CUDNN = 1/g' config.mk && \
+# Add ssd operators
+  sed -i "s#EXTRA_OPERATORS =#EXTRA_OPERATORS = example/ssd/operator#" config.mk && \
+# Make
+  make -j4
+
+# Install Python package
+RUN cd /root/mxnet/python && python setup.py install
+PUSH ptqa/mxnet:2.7
