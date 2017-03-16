@@ -2,6 +2,7 @@ FROM jjanzic/docker-python3-opencv:latest
 {{ $type := (or .type "gpu") }}
 {{ $tag := (or .tag "latest") }}
 
+{{ if eq $type "gpu" }}
 ENV CUDA_VERSION 8.0
 ENV CUDA_PKG_VERSION 8-0=8.0.44-1
 ENV CUDA_PKG_VERSION 8-0=8.0.44-1
@@ -59,16 +60,17 @@ RUN CUDNN_DOWNLOAD_SUM=a87cb2df2e5e7cc0a05e266734e679ee1a2fadad6f06af82a76ed81a2
     tar -xzf cudnn-8.0-linux-x64-v5.1.tgz -C /usr/local && \
     rm cudnn-8.0-linux-x64-v5.1.tgz && \
     ldconfig
-
+{{ end }}
 RUN pip install --upgrade pip
 RUN pip install numpy scipy  pandas sklearn easydict
-
-RUN apt-get update && apt-get install -y \
-  build-essential \
-  git \
-  libopenblas-dev \
-  libopencv-dev \
-  wget
+RUN echo 'deb http://deb.debian.org/debian jessie-backports main' >> /etc/apt/sources.list && \
+    apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    libopenblas-dev \
+    libopencv-dev \
+    wget \
+    ffmpeg
 
 # Clone MXNet repo and move into it
 RUN cd /root && git clone --recursive https://github.com/dmlc/mxnet && cd mxnet && \
