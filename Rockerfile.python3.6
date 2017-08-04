@@ -1,4 +1,4 @@
-FROM jjanzic/docker-python3-opencv:latest
+FROM jjanzic/docker-python3-opencv:contrib
 {{ $type := (or .type "gpu") }}
 {{ $tag := (or .tag "latest") }}
 
